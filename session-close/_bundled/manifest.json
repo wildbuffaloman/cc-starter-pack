@@ -1,0 +1,13 @@
+{
+    "bundled_at": "2026-04-17T00:53:39Z",
+    "nodes": {
+        "brief-updater": {
+            "version": 1,
+            "source_hash": "a091ff5b98b4"
+        },
+        "people-resolver": {
+            "version": 1,
+            "source_hash": "3126bda6805e"
+        }
+    }
+}

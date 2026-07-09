@@ -1,0 +1,13 @@
+{
+    "bundled_at": "2026-04-17T00:52:51Z",
+    "nodes": {
+        "smart-fetch": {
+            "version": 2,
+            "source_hash": "15ffa0a7dfc7"
+        },
+        "vault-index-loader": {
+            "version": 4,
+            "source_hash": "3d401319e159"
+        }
+    }
+}
