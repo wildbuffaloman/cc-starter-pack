@@ -4,10 +4,15 @@
 
 ## Installation
 
+This skill ships as part of **cc-starter-pack**. Install the pack, not the skill:
+
 ```bash
-cd ~/.claude/skills
-git clone https://github.com/wildbuffaloman/cc-skill-permissions.git permissions
+git clone https://github.com/wildbuffaloman/cc-starter-pack.git
+cd cc-starter-pack
+./install.sh
 ```
+
+**Updating an existing install:** a plain `./install.sh` **skips** every skill you already have and reports nothing wrong, so an update silently does nothing. Run `./install.sh force` to overwrite your copies with the current versions.
 
 ## Usage
 
