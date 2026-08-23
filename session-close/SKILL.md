@@ -5,7 +5,7 @@ description: Close out a session — invoke when user says "close out", "wrap up
 user-invocable: true
 argument-hint: "optional: project name or scope hint"
 ---
-<!-- ported-from: session-close@0.17.0 sha256:dfe7db8aa8ea -->
+<!-- ported-from: session-close@0.17.0 sha256:0354761b0547 -->
 
 Close out the current session by updating all touched vault artifacts and optionally triggering a retrospective.
 
