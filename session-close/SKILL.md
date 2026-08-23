@@ -1,7 +1,7 @@
 ---
 name: session-close
-version: "0.0.6"
-description: Close out a session — invoke when user says "close out", "wrap up", "done for now", "save state", "closing out", "end session", "let's close", or similar. Updates project briefs, Area MOCs, Program briefs, contact cards, and Agendas; runs infrastructure drift check, skill codification scan (atomic + composite), INBOX sweep for session-generated files, and retro evaluation.
+version: "0.1.0"
+description: Close out a session — invoke when user says "close out", "wrap up", "done for now", "save state", "closing out", "end session", "let's close", or similar. Updates project briefs, Area MOCs, Program briefs, contact cards, and Agendas; enforces brief structural hygiene (moves completed items out of Next Actions into the Log, dedups tasks, consolidates Continuation Prompts) and reconciles open Next Actions against reality with evidence-cited staleness probes (propose-only); runs infrastructure drift check, skill codification scan (atomic + composite), INBOX sweep for session-generated files, and retro evaluation.
 user-invocable: true
 argument-hint: "optional: project name or scope hint"
 ---
@@ -118,6 +118,111 @@ Read and follow `./_bundled/protocols/session-closeout-protocol.md` (the bundled
 - Cross-pollination check
 
 The vault working directory is {{VAULT_ROOT}}. Some phases below also reference `{{AGENT_DIR}}` — wherever you keep your Claude Code skills, hooks, and maintenance scripts (e.g. `~/.claude`).
+
+## Phase 1.9 — Brief Structural Hygiene
+
+Deterministic structural check on the brief Phase 1 just wrote. Phase 1 judges *content*; this phase enforces the brief's *structural invariants* — one Continuation Prompt, deduped tasks, no completed items still sitting in Next Actions. Those are the two failure modes that make a brief rot: Continuation Prompts pile up, and Next Actions becomes a jumble of done and not-done.
+
+Triggered: after Phase 1, whenever Phase 1 edited an active brief. Skipped silently: no active brief, or no brief edits this session.
+
+### 1.9a: Check the invariants
+
+Read the active brief and check:
+
+| Invariant | Violated when |
+|---|---|
+| **Single Continuation Prompt** | more than one CP *body* exists |
+| **No completed items in Next Actions** | any `- [x]` line remains under `## Next Actions` |
+| **No duplicate tasks** | two `- [ ]` lines say the same thing |
+| **Log is append-only** | a Log row was rewritten rather than added |
+
+> **Count CP bodies, not headings — and strip code blocks first.** Continuation-Prompt accumulation keeps ONE heading and stacks extra `> **Date:**` bodies underneath it. A raw heading count finds nothing and false-fires on any fenced *example* CP inside a document. Strip fenced blocks and inline code, then count both headings and `> **Date:**` bodies.
+
+### 1.9b: Auto-fix the mechanical issues
+
+Safe to fix without asking — these relocate and dedup structure, they never rewrite prose:
+
+- **Lingering `- [x]` in Next Actions** → move each one to `## Log` as a one-row entry, then remove it from Next Actions. Next Actions is for what is still open; the record of what got done belongs in the Log.
+- **Duplicate `- [ ]` lines** → collapse to one, keeping the richest variant (the one carrying a due date, priority, or owner).
+- **Stale or archived duplicate CP blocks** → consolidate into the single current CP, merging any still-relevant carryover first.
+
+### 1.9c: Surface anything needing judgment
+
+Do NOT auto-merge when a decision is required — ask instead:
+
+- Two CP blocks that both look current (you cannot tell which is canonical).
+- A second CP that may be deliberate instructional content — offer to demote it to plain text rather than delete it.
+
+Prompt: `⚠ Brief hygiene: <issue>. [F]ix as proposed / [K]eep / [S]how.`
+
+### 1.9d: Report
+
+```
+Brief hygiene: <clean | auto-fixed: N [x]→Log, M dup tasks, K CPs consolidated | surfaced: …>
+```
+
+### Rules
+
+- Never rewrite Continuation Prompt *prose* here. This phase only relocates, dedups, and consolidates.
+- After auto-fixing, re-check once — the invariants must come back clean.
+
+## Phase 1.95 — Next-Actions Reality Reconciliation (propose-only)
+
+Phase 1 resolves the items **this session's own work** completed. Nothing before this phase ever asks whether an item still open in the brief was completed by *someone else* — another session, another machine, a scheduled job, a counterparty, or a change that quietly retired the item's premise. That unowned case is how briefs go stale while looking maintained.
+
+The failure is real and it survives careful closes: an item reading *"fix the red CI on main"* can sit open for two weeks after the PR that turned CI green — including through a meticulous close of that same brief — because every close before this one only reconciled its **own** thread's work, never the brief as a whole. And a stale brief poisons whatever reads it downstream: anything generating proposals from Next Actions will happily generate one for work that is already done.
+
+Triggered: after Phase 1.9, whenever an active brief exists. Skipped silently: no active brief, or a purely conversational session.
+
+### 1.95a: Enumerate open items
+
+Collect from the active brief:
+- every `- [ ]` line in `## Next Actions` and `## Waiting For`;
+- every follow-up line inside the **current** `### Continuation Prompt` block — carryover lists live there and are the observed blind spot. Older CP blocks below the current one are historical record: never scan them, never edit them.
+
+### 1.95b: Deterministic staleness probes — run these first
+
+These are plain checks, not model judgment. Flag an item when a probe hits, and **every flag must name its evidence** — never a naked "this looks done":
+
+| Probe | Fires when | Evidence to cite |
+|---|---|---|
+| **Log-contradiction** | the item shares distinctive tokens (module, PR number, script name, error string) with a LATER-dated `## Log` row carrying a completion marker (`✅` / `RESOLVED` / `SHIPPED` / `VERIFIED`) | the Log row's date + marker |
+| **Retired mechanism** | the item says to run a skill or script that no longer exists, or whose description now begins `RETIRED` | the missing path / retirement marker |
+| **Version-pin regression** | the item pins `vX.Y.Z` of something whose current version is already higher | both version strings |
+| **Expired scheduled check** | a "verify on `<date>`" item whose date is more than 21 days past | the date vs today |
+| **Supersession range** | the item's leading `(N)` ordinal falls inside a range a Log row declares superseded | the Log row's date and the step range it names |
+
+Probes justify a *question*, never a verdict.
+
+### 1.95c: Session-evidence pass
+
+Also flag any open item whose completion **this session directly observed** — a test run you read, a file you confirmed on disk, a merged PR, a reply that arrived. Same evidence-naming requirement.
+
+### 1.95d: Surface — never auto-retire
+
+Truth stays with the user. A probe hit means "suspected stale"; only the user confirms what is actually true.
+
+- **Interactive close** → one batched question, at most 6 items per close; per item offer: `[R]etire → move to Log with the evidence / [K]eep (still real) / [E]dit scope (partially done — restate what remains)`.
+- **Non-interactive close** (background job, scheduled run) → list the flags in the report as `⚠ suspected-stale` lines with their evidence, and make **zero** edits.
+
+Applying an approved retirement reuses Phase 1.9b's mechanics: move the item into `## Log` as one row that **cites the evidence** — e.g. `| 2026-08-23 | Task | Retired stale item "fix the red CI" — CI green since PR #37 (2026-08-09). |`. For a follow-up line inside the current CP, strike it in place with a `→ ✅` annotation rather than deleting it.
+
+### 1.95e: Report (mandatory line)
+
+Every full close MUST print:
+
+```
+Next-Actions reality check: N scanned, M flagged, K retired, J kept
+```
+
+`0 flagged` is a valid result. A close report **missing the line entirely** means the sweep never ran — that is the difference between "nothing was stale" and "nobody looked", and they must never print identically.
+
+### Rules
+
+- Propose-only, always — even a 100 %-certain hit (a script that demonstrably no longer exists) is surfaced, not auto-applied. Cost of asking: seconds. Cost of a wrong auto-retire: a real commitment silently disappears.
+- `## Waiting For` items flag only on the deterministic probes. Whether a counterparty delivered is exactly the kind of truth this phase must not decide on its own.
+- This phase only retires items. It never adds them, never rewords beyond an approved `[E]dit`, and never reprioritizes.
+- Scope is the **active brief only**. Sweeping the whole backlog is a separate job, not something a per-session close should attempt.
 
 ## Phase 1.5 — Stale Frontmatter Sweep
 
