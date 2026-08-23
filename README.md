@@ -1,6 +1,6 @@
 # cc-starter-pack
 
-Curated Claude Code skills for members of the **AI Acceleration Club**. Ten skills that bootstrap you into productive workflow patterns from day one — no paid API keys, minimal setup, and every dependency explicitly declared.
+Curated Claude Code skills for members of the **AI Acceleration Club**. Eleven skills that bootstrap you into productive workflow patterns from day one — no paid API keys, minimal setup, and every dependency explicitly declared.
 
 This is **Tier A+** of the Member Starter-Pack Initiative. Tier B (14 additional skills including `/meeting-minutes`, `/last30days`, `/weekly-review`) ships after Tier A proves out.
 
@@ -20,6 +20,7 @@ This is **Tier A+** of the Member Starter-Pack Initiative. Tier B (14 additional
 | **`/deep-research`** | Four-phase research pipeline: broad sweep → deep dive → synthesis → brief | — |
 | **`/deep-planning`** | Mode-based planning pipeline (Quick / Build / Strategic) that orchestrates brainstorm → plan before you build | Superpowers + Compound Engineering plugins; `/last30days` optional |
 | **`/fermi-decomposition`** | Break "immeasurable" quantities into estimable factors (market sizing, cost/deal estimation) — *How To Measure Anything* method | — |
+| **`/inbox-clear`** | Clear your inbox with the GTD decision tree — classify every item, approve each move by checkbox | — |
 
 Every `SKILL.md` in this repo declares its dependencies per the [Skill Dependencies Declaration convention](#dependencies-convention). Open any SKILL.md and scroll to `## Dependencies` to see exactly what the skill needs, what's optional, and what it explicitly does **not** require.
 

@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="$HOME/.claude/skills"
 mkdir -p "$TARGET"
-SKILLS="session-close context permissions retro extract skill-create project-create deep-research deep-planning fermi-decomposition"
+SKILLS="session-close context permissions retro extract skill-create project-create deep-research deep-planning fermi-decomposition inbox-clear"
 MODE="${1:-copy}"
 for s in $SKILLS; do
   if [[ -e "$TARGET/$s" && "$MODE" != "force" ]]; then
