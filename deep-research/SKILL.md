@@ -1,10 +1,11 @@
 ---
 name: deep-research
-version: "0.0.1"
+version: "0.0.2"
 description: "Two-phase deep research pipeline: broad sweep + synthesis into structured brief with sources, confidence levels, and recommendations."
 user-invocable: true
 argument-hint: "<research topic or question>"
 ---
+<!-- ported-from: deep-research@0.1.0 sha256:0d199596889f deliberate:personal-only -->
 
 ## Automation-Layer Alternative
 

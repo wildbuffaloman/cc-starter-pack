@@ -1,7 +1,9 @@
 ---
 name: permissions
+version: "0.1.0"
 description: Display current Claude Code permission settings and allowed tools
 ---
+<!-- ported-from: permissions@0.1.0 sha256:23c566ed8c19 -->
 
 Show the user the current permission configuration:
 
@@ -12,6 +14,10 @@ Show the user the current permission configuration:
 5. Explain how to modify permissions
 
 If no settings files exist, explain how to create them and configure permissions.
+
+## Auto-mode trust
+
+Auto mode's pre-approved git remotes and SSH hosts live in `~/.claude/settings.json` under `autoMode.environment`. An agent running in auto mode cannot widen that allowlist itself because auto mode blocks self-modification. Show the user the required settings change and ask them to apply it outside the active auto-mode session.
 
 Example settings.json structure:
 ```json

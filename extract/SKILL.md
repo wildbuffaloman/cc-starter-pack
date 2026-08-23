@@ -1,10 +1,11 @@
 ---
 name: extract
-version: "0.1.1"
+version: "0.2.0"
 description: Smart-fetch URL content and resolve vault image/PDF embeds to extract structured value from any vault note or URL — standalone content extraction following the Content Extraction convention. Supports single note, URL, and batch folder modes.
 user-invocable: true
 argument-hint: "note filename, URL, folder path, or 'batch' for INBOX"
 ---
+<!-- ported-from: extract@0.5.2 sha256:1876c9d77f2d -->
 
 Extract structured value from any note or URL using the [[Content Extraction]] convention. Smart-fetches thin notes, generates an extraction block with summary, takeaways, action items, and vault connections.
 
@@ -112,6 +113,14 @@ When the input is a bare URL (starts with `http://` or `https://`):
    </details>
    ```
 4. **Report** to the user: note created, title, and key insights.
+
+## PowerPoint (.pptx) Sources
+
+A `.pptx` is a ZIP archive. Text conversion is useful, but it has a **silent failure mode** that requires a separate image check:
+
+- Converters such as `markitdown` extract text runs from the deck XML — titles, bullets, and tab-separated text-box "tables". They can render images as empty alt text, so numbers stored inside a rasterized table image disappear without an error even when the extraction looks complete.
+- **Recovery:** unzip the `.pptx`, read `ppt/slides/_rels/slideN.xml.rels` to map each slide to its `ppt/media/*` images, and inspect those images directly with a multimodal reader.
+- Before declaring extraction complete, also check for `<a:tbl>` graphic frames (native tables) and embedded `.xlsx` files or `chart*.xml` files (charts can carry hidden worksheets).
 
 ## Batch Mode
 

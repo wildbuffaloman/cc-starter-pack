@@ -1,10 +1,11 @@
 ---
 name: skill-create
-version: "0.0.1"
+version: "0.1.0"
 description: Create a new Claude Code skill — guided conversation to define the skill's purpose, triggers, steps, and rules, then generate and install the SKILL.md file.
 user-invocable: true
 argument-hint: "skill name or description of what the skill should do"
 ---
+<!-- ported-from: skill-create@0.2.1 sha256:55fabf8f42db -->
 
 Create a new Claude Code custom skill through a guided interactive process — define its purpose, invocation pattern, steps, and rules, then generate and install the SKILL.md file into `~/.claude/skills/`.
 
@@ -120,6 +121,22 @@ argument-hint: "<hint text>" # only if user-invocable
 - Reference tools by their actual names (Read, Write, Edit, Glob, Grep, Bash, Agent, WebSearch, etc.)
 - Keep rules actionable and specific — no vague "be careful" statements
 - If the skill interacts with the Obsidian vault, include a Vault Exception section specifying what it may read/write/modify
+
+### Step 4.5: Validate the generated frontmatter (always)
+
+Before installing or declaring the skill created, confirm that its `SKILL.md` frontmatter is valid YAML. A malformed header can make the skill disappear from discovery even when the Markdown body is correct.
+
+Run a real YAML parse, replacing the path with the generated file:
+
+```bash
+python3 -c "import yaml,re; t=open('<path-to-new-SKILL.md>').read(); m=re.match(r'^---\n(.*?)\n---',t,re.S); yaml.safe_load(m.group(1)); print('frontmatter OK')"
+```
+
+If the command raises an exception or cannot find a leading frontmatter block, fix the file before continuing. In particular:
+
+- Keep `version:` and `description:` on separate lines.
+- Quote any description containing a colon, hash, brackets, or other YAML-significant punctuation.
+- Re-run the parser after every fix and proceed only when it prints `frontmatter OK`.
 
 ### Step 5: Evaluate Skill Graph Architecture
 

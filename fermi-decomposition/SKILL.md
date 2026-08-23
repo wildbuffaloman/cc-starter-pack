@@ -1,11 +1,12 @@
 ---
 name: fermi-decomposition
-version: "0.1.1"
+version: "0.1.2"
 description: "Break seemingly immeasurable quantities into estimable components using structured factor decomposition. Use when estimating unknown quantities, sizing markets, or turning vague problems into structured estimates."
 user-invocable: true
 argument-hint: "quantity to estimate (e.g., 'piano tuners in Chicago', 'annual cost of employee turnover', 'SaaS market size in Austin')"
 type: flexible
 ---
+<!-- ported-from: fermi-decomposition@0.1.2 sha256:65ff082c8c31 deliberate:personal-only -->
 
 # Fermi Decomposition
 

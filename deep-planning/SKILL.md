@@ -1,10 +1,11 @@
 ---
 name: deep-planning
-version: "0.4.1"
+version: "0.4.2"
 description: Mode-based router for any complex planning exercise prior to executing. Three modes (Quick / Build / Strategic) calibrate ordering, skill selection, and Compound Engineering integration to the intent and complexity of the work. Replaces /spec-writer (hard-retired 2026-05-08). Use when the user says "spec out X", "design the system for X", "let's plan X properly", "scope this sub-project", "evaluate", "explore", "from scratch", "rethink", or returns to an in-progress /project-create with non-trivial complexity.
 user-invocable: true
 argument-hint: "topic description (short sentence of what to plan)"
 ---
+<!-- ported-from: deep-planning@0.4.3 sha256:c7589aa067f0 deliberate:personal-only -->
 
 # Deep Planning — Mode-Based Composite Pipeline for Complex Planning
 

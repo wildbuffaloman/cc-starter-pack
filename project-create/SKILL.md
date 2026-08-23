@@ -1,10 +1,11 @@
 ---
 name: project-create
-version: "0.2.1"
+version: "0.3.0"
 description: Create a Project or Program brief through research, interactive Q&A, template application, vault linking, and INBOX delivery for review. Projects use a two-phase flow — Phase 1 (Scoping) drafts the brief, Phase 2 (Review & Commit) iterates, then creates a dedicated folder and assigns final status.
 user-invocable: true
 argument-hint: "note path, note title in INBOX, or topic description"
 ---
+<!-- ported-from: project-create@0.3.8 sha256:60433404dd25 -->
 
 Create a Project Brief or Program Brief through a structured interactive process — research the input, run a guided Q&A to scope the initiative, decide project vs. program, apply the correct template, link to relevant vault notes and external references, and deliver for review.
 
@@ -20,7 +21,7 @@ Every idea deserves a fair shot at becoming a project — but only after it has 
 
 The skill is conversational — it gathers context through research and Q&A before writing anything. The user drives scope decisions; the AI provides structure, research, and vault connections.
 
-Pipeline: `Input -> Research -> Q&A -> Classify -> Template -> Link -> Deliver -> Cross-Link`
+Pipeline: `Input -> Research -> Overlap Route -> Q&A -> Classify -> Template -> Link -> Deliver -> Cross-Link`
 
 ## Vault Exception
 
@@ -28,7 +29,8 @@ This skill may:
 - Create new files in `Inbox/` — the draft project/program brief and any companion files
 - **For Projects only**, during Phase 2 finalization: create a new folder under `Projects/<Brief Name>/` and move the confirmed brief from INBOX into that folder
 - Read files anywhere in the vault for research and linking
-- **Modify existing vault files only for cross-linking** — inserting wikilinks to the new brief into related notes (Step 7). All proposed edits must be listed and confirmed by the user before execution. No other modifications to existing files are permitted.
+- **Modify an existing brief during an approved Step 1.5 fold-in** — only the exact additions shown to and confirmed by the user
+- **Modify existing vault files for cross-linking** — inserting wikilinks to the new brief into related notes (Step 7). All proposed edits must be listed and confirmed by the user before execution. No other modifications to existing files are permitted.
 - **Edit the draft brief in place during Phase 2** — iterative revisions before the user confirms the final version are allowed on the draft file itself.
 
 ## Inputs
@@ -64,6 +66,49 @@ Use WebSearch to find:
 
 **1d — Present research findings**
 Share a concise summary of what was found — vault connections, relevant context, and external insights. This grounds the Q&A in real context.
+
+### Step 1.5: Overlap Check & Routing Decision (mandatory)
+
+Run this forcing gate immediately after research and before the scoping Q&A. Its purpose is to prevent a duplicate brief from being created when the work belongs under, beside, or inside something that already exists.
+
+**1. Build a candidate shortlist.** From the Step 1 results, identify at most five existing briefs that could plausibly overlap. For each candidate, test these signals:
+
+- The request could be a sub-project of the candidate's outcome.
+- The request could be a milestone, workstream, or next action inside the candidate.
+- The two outcomes or deliverables substantially overlap.
+- Creating a new brief would duplicate ownership, tracking, or source material.
+
+**2. Present the routing comparison.** Show the candidate's name and path, the relationship signal, the expected outcome of each route, and your recommendation. Recommend one of:
+
+- **Sub-project** — distinct outcome and execution track, but governed by an existing parent.
+- **Fold into existing** — no independent outcome; the work belongs in an existing brief.
+- **Sibling or new brief** — distinct outcome that should coexist with the candidate.
+- **Considered but distinct** — apparent overlap was checked and rejected for a specific reason.
+
+**3. Require a routing choice.** Ask the user to choose:
+
+1. Create a new brief.
+2. Create it as a sub-project of a named parent.
+3. Fold the request into a named existing brief.
+4. Defer and leave the input unchanged.
+
+Do not continue to Step 2 until the user chooses.
+
+**4. Execute the chosen route.**
+
+- **New brief** — continue to Step 2. Record the considered candidates and why they were distinct in the draft's Working Notes.
+- **Sub-project** — pin the chosen parent for the rest of the flow, continue to Step 2, and ensure the final brief's parent relationship and destination agree with that decision.
+- **Fold into existing** — stop the new-brief pipeline. Read the target brief, identify the smallest correct home for the request (`Next Actions`, `Waiting For`, a milestone, Working Notes, or the Sub-Project Index), show the exact proposed additions, and edit only after approval. Add a Log row recording the fold-in and source. Preserve, archive, or relocate the original input note only as the user explicitly directs; never silently delete it. Report the updated brief and terminate.
+- **Defer** — leave the input unchanged, report the candidate routes considered, and terminate.
+
+**Red flags that favor fold-in or sub-project routing:**
+
+| Signal | Default response |
+|---|---|
+| Same owner, outcome, and milestone horizon as an active brief | Fold into that brief |
+| Independent deliverable but governed by an existing program or project | Create as a sub-project |
+| Same topic but different outcome, owner, or lifecycle | Create a sibling/new brief and record why |
+| Unsure which existing brief owns it | Defer and ask; do not create a duplicate by default |
 
 ### Step 2: Phase 1 — Scoping Q&A
 
@@ -331,7 +376,7 @@ Summarize what was linked:
 - Use AskUserQuestion for structured choices — batch up to 4 questions per call
 - Only include vault notes that are clearly relevant — when in doubt, leave it out
 - Use exact note names without .md extension inside wikilinks
-- Do not modify existing vault files except during Step 6 (Phase 2 commit — moving the draft from INBOX to `Projects/<Brief Name>/`) and Step 7 (Cross-Link Scan — approved wikilink insertions). Draft-brief edits during Phase 2 iteration target only the draft file itself.
+- Do not modify existing vault files except during Step 1.5 (an approved fold-in), Step 6 (Phase 2 commit — moving the draft from INBOX to `Projects/<Brief Name>/`), and Step 7 (Cross-Link Scan — approved wikilink insertions). Draft-brief edits during Phase 2 iteration target only the draft file itself.
 - Avoid empty placeholder wikilinks — omit sections with no content rather than leaving blanks
 - Web research is optional — skip it for purely internal/organizational projects where external knowledge adds nothing
 - If the input note already contains substantial content, pre-fill Q&A answers from it and confirm with the user rather than re-asking

@@ -1,10 +1,11 @@
 ---
 name: session-close
-version: "0.1.0"
+version: "0.2.0"
 description: Close out a session — invoke when user says "close out", "wrap up", "done for now", "save state", "closing out", "end session", "let's close", or similar. Updates project briefs, Area MOCs, Program briefs, contact cards, and Agendas; enforces brief structural hygiene (moves completed items out of Next Actions into the Log, dedups tasks, consolidates Continuation Prompts) and reconciles open Next Actions against reality with evidence-cited staleness probes (propose-only); runs infrastructure drift check, skill codification scan (atomic + composite), INBOX sweep for session-generated files, and retro evaluation.
 user-invocable: true
 argument-hint: "optional: project name or scope hint"
 ---
+<!-- ported-from: session-close@0.17.0 sha256:dfe7db8aa8ea -->
 
 Close out the current session by updating all touched vault artifacts and optionally triggering a retrospective.
 
@@ -108,6 +109,18 @@ Before starting standard session closeout, check for an active Deep Work session
 
 4. Continue with Phase 1.
 
+## Phase 0.5 — Forced Brief Target (argument resolution)
+
+`/session-close` accepts an optional project hint. When provided, it forces which project brief every downstream phase updates instead of relying on session inference.
+
+1. **No project hint** — skip this phase and let Phase 1 infer the active brief from the session.
+2. **Project hint present** — search `Projects/` recursively for a fuzzy, case-insensitive match against folder names, brief filenames, and brief titles.
+   - **One strong match** — pin that brief and project name for every downstream phase. Announce the resolved path and that it overrides session inference.
+   - **Multiple strong matches** — list the candidates and ask the user which one to use. Do not guess.
+   - **No match** — stop, report the search terms used, and ask for the brief path. Never silently fall back to a different inferred project after the user supplied a hint.
+
+When a forced target is pinned, Phase 1 must use it and skip its own brief search. If the observed work appears to concern another project, warn once, honor the forced target, and leave the other brief untouched.
+
 ## Phase 1 — Standard Session Closeout
 
 Read and follow `./_bundled/protocols/session-closeout-protocol.md` (the bundled copy shipped with this skill), or your own customized copy at `{{AGENT_DIR}}/session-closeout-protocol.md` if you maintain one. Execute all steps:
@@ -118,6 +131,60 @@ Read and follow `./_bundled/protocols/session-closeout-protocol.md` (the bundled
 - Cross-pollination check
 
 The vault working directory is {{VAULT_ROOT}}. Some phases below also reference `{{AGENT_DIR}}` — wherever you keep your Claude Code skills, hooks, and maintenance scripts (e.g. `~/.claude`).
+
+## Phase 1.7 — Continuation Prompt Quality Gate
+
+The Continuation Prompt is the load-bearing artifact for resuming in the next session. Validate the prompt after Phase 1 writes it and before finalizing the closeout.
+
+Triggered: Phase 1 wrote or updated a `### Continuation Prompt` in the active brief.
+
+Skipped silently: no active brief, a purely conversational session, or Phase 1 made no prompt edit.
+
+### 1.7a: Extract the prompt
+
+Read the `### Continuation Prompt` block Phase 1 just wrote.
+
+### 1.7b: Score against the rubric
+
+Each check is binary pass/fail:
+
+| # | Check | Pass condition | Fail signal |
+|---|---|---|---|
+| 1 | **Resume locus** | Names a specific file path, line number, function, milestone, or subtask | Uses only vague language such as "continue", "explore", "review", or "look at" |
+| 2 | **Files touched** | Lists at least one file or section explicitly | Says "various" or "multiple", or omits the list |
+| 3 | **Mode + cwd** | States the working directory or mode when non-default | A non-default location is implied but unstated |
+| 4 | **Next-action verb** | Uses an imperative such as run, draft, verify, fix, write, test, commit, push, ship, send, or review | Starts with explore, look at, think about, consider, or see |
+| 5 | **Internal links** | Includes at least one internal note reference in the prompt body | Contains no internal note reference |
+
+For a closeout-style prompt that opens with completed state, pass check 4 when its follow-up section uses imperative verbs.
+
+### 1.7c: Decision logic
+
+- **5/5** — continue silently.
+- **4/5** — record the warning in the closeout summary and continue.
+- **3/5 or lower** — show the failed checks and ask the user to choose: enrich now, accept as-is, or show the prompt.
+
+### 1.7d: Enrichment loop
+
+If the user chooses enrichment, ask: "What's the specific next action and where should the next session start?" Update the prompt while preserving its other sections, then re-score once. If it still fails, accept it as-is and record the warning. Never rewrite the prompt without user approval.
+
+### 1.7e: Log
+
+Add this line to the closeout summary:
+
+```text
+Continuation Prompt quality: N/5 — [silent | accepted-with-warnings | enriched]
+```
+
+If the session log record supports extra fields, also record the integer score as `prompt_quality`.
+
+### Rules
+
+- Keep the rubric at five checks; do not expand it during a closeout.
+- Apply the mode-and-cwd check only when the session used a non-default location or mode.
+- Inspect internal links in the prompt body, not in headings.
+- If Phase 1 should have written a prompt but none exists, surface that as a Phase 1 failure and investigate before closing.
+- Re-run this gate on every same-conversation re-invocation because the prompt may have changed.
 
 ## Phase 1.9 — Brief Structural Hygiene
 

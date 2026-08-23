@@ -1,9 +1,11 @@
 ---
 name: retro
+version: "0.0.1"
 description: Run a retrospective — routes to the correct protocol based on session mode and review scope
 user-invocable: true
 argument-hint: "optional: project name, or review scope for vault management — weekly, monthly, quarterly, annual"
 ---
+<!-- ported-from: retro@0.2.0 sha256:f60e34e6a76f deliberate:personal-only -->
 
 Run a retrospective on the current session or project.
 
