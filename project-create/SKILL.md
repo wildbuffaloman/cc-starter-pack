@@ -1,11 +1,11 @@
 ---
 name: project-create
-version: "0.3.0"
+version: "0.3.1"
 description: Create a Project or Program brief through research, interactive Q&A, template application, vault linking, and INBOX delivery for review. Projects use a two-phase flow — Phase 1 (Scoping) drafts the brief, Phase 2 (Review & Commit) iterates, then creates a dedicated folder and assigns final status.
 user-invocable: true
 argument-hint: "note path, note title in INBOX, or topic description"
 ---
-<!-- ported-from: project-create@0.3.8 sha256:60433404dd25 -->
+<!-- ported-from: project-create@0.4.0 sha256:af3eabce65bd -->
 
 Create a Project Brief or Program Brief through a structured interactive process — research the input, run a guided Q&A to scope the initiative, decide project vs. program, apply the correct template, link to relevant vault notes and external references, and deliver for review.
 
@@ -207,6 +207,8 @@ H2 Log
 
 For projects, populate the `## Continuation Prompt` section with this activation text (substitute `<Brief Name>` with the actual filename stem). Do **not** use the standard empty handoff template — that is only restored after Phase 2 finalizes in Step 6.
 
+> **Measured values come from the system of record, never from the brief.** If the text you write here states a count, status or roster whose truth lives in an external Sheet, database or API, re-read that source first and name it. The brief, its `## Log` and any earlier Continuation Prompt are all *copies*, and they go stale the moment the last sync ran.
+
 ```markdown
 ## Continuation Prompt
 
@@ -313,6 +315,7 @@ Execute in order:
    > **Blockers/open questions:**
    > **Files touched:**
    ```
+4b. **Check the activation text is gone before moving on.** The Phase 2 block is a `>`-quoted paragraph *plus* a fenced code block, so a replacement that stops at the first fence leaves the whole `Resume /project-create Phase 2 …` prompt sitting under the new empty template. After step 4, `grep -c "Resume /project-create\|Phase 2 pending" "<brief>"` must return **0**, and `grep -c "^> \*\*Date:\*\*" "<brief>"` must return **1**. If either is off, fix the section before continuing.
 5. Add a Log entry for commit: `| <today> | Milestone | Project created and committed via /project-create (status: <active|incubating>) |`
 
 **6e — Confirm commit**
