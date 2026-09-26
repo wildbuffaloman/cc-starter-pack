@@ -1,11 +1,11 @@
 ---
 name: inbox-clear
-version: "0.0.1"
+version: "0.1.0"
 description: "Clear your inbox folder using the GTD decision tree — classify every item, propose a destination for each, and execute only what you approve. Two-phase: a read-only classification pass writes a manifest of checkbox decisions, then an execution pass acts on the boxes you tick. Use when the user says 'clear the inbox', 'inbox triage', 'process my inbox', or '/inbox-clear'."
 user-invocable: true
 argument-hint: "optional filename to process a single note, or no argument to clear the whole inbox"
 ---
-<!-- ported-from: inbox-clear@0.13.0 sha256:db7711e04245 -->
+<!-- ported-from: inbox-clear@0.16.0 sha256:59235bdf9780 -->
 
 Clear your inbox folder using GTD methodology — classify every item, propose concrete actions, and execute after your approval.
 
@@ -153,12 +153,15 @@ For each inbox item:
 
 ## Phase 1 — Classify and Propose (read-only)
 
+0. **One open manifest at a time.** Before scanning, look in the inbox for an earlier `*-inbox-manifest.md` that was never executed (Phase 2 step 5 moves a manifest out once it has run, so one still sitting in the inbox was never approved). Count its ticked `- [x]` lines:
+   - **0 ticks** — nobody engaged with it, and this run re-classifies the live inbox anyway, so the new manifest supersedes it. Tell the user, and with their OK move the old one to `04 ARCHIVES/` (all three move-safety layers) before writing the new one.
+   - **1 or more ticks** — **stop and write nothing.** The user has started approving that manifest; a second one would fork their decisions across two files. Say which manifest is open and how many lines are ticked, and offer to run Phase 2 on it now. Sweep again only after it has been executed and moved out.
 1. List every top-level entry in the inbox — **all file types, plus folders**, not just markdown.
 2. Run the GTD tree on each.
-3. Write the manifest to the inbox as `YYYY-MM-DD-inbox-manifest.md`.
-4. **Change nothing else.** Phase 1 never moves, edits, or deletes a file.
+3. Write the manifest to the inbox as `YYYY-MM-DD-inbox-manifest.md`, with today's date read **at write time**. The name is fixed: **never add a suffix** (`-2`, `-b`, a time) to get around an existing file — a name collision is step 0's situation, not a naming problem. **Every checkbox is written unticked `[ ]`**, including STAY blocks; step 0 of the next run tells an abandoned manifest from one in progress by counting ticks, so one pre-ticked line would make every stale manifest look active.
+4. **Change nothing else.** Phase 1 never moves, edits, or deletes a file (the only exception is the step-0 supersede, and only with the user's OK).
 
-> **Never claim what you did not read.** If you classified from a filename and frontmatter without opening the body, you may not propose DELETE or MERGE on a suspected duplicate (a title match is a hypothesis *about* content, not a reading of it — a "duplicate" is sometimes a superset, and deleting it destroys the only complete copy). Neither may you emit a confidently-targeted task. Say what you actually inspected, and propose the weaker, reversible disposition instead.
+> **Never claim what you did not read.** If you classified from a filename and frontmatter without opening the body, you may not propose DELETE or MERGE on a suspected duplicate (a title match is a hypothesis *about* content, not a reading of it — a "duplicate" is sometimes a superset, and deleting it destroys the only complete copy). Emit it as **`HELD — duplicate suspected, needs diff`**, naming the note it may duplicate, and leave the file where it is. Do not downgrade it to ROUTE TO READ-REVIEW: a HELD reads as a check still waiting for evidence, while a read-review route reads as a settled decision and buries the question. Neither may you emit a confidently-targeted task. Say what you actually inspected, and propose the weaker, reversible disposition instead.
 
 > **Redact secrets.** If an item contains a credential-shaped token — an API key, a private key, a password — write `«REDACTED»` in the manifest instead of the value, and flag the item. A manifest is a new file: quoting a live secret into it multiplies the exposure, and if the source is later archived the manifest becomes the surviving copy.
 
@@ -186,7 +189,13 @@ Untick or delete a line to reject it. An unticked line does NOT happen.
   - [ ] task: "Draft the follow-up" → [[Some Project]]
   - [ ] frontmatter: set `category: reference`
   - ℹ️ evidence: mentions X, connects to [[Other Note]]
+
+### [[Open Draft]]
+- [ ] **STAY** · `00 INBOX/` · status: draft
+  - ℹ️ in-progress status — kept for your review. To route it out instead, replace STAY with another disposition and destination, then tick the line.
 ```
+
+> **A STAY is a proposal, not a non-decision.** Items the tree keeps in the inbox get a decision block like every other item — never a checkbox-less table or a passing mention. STAY is the skill's inference, and you need a way to disagree with it on the page. Ticking a STAY line without changing it does nothing (it agrees with the proposal).
 
 ## Phase 2 — Execute (after approval)
 

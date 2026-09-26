@@ -1,11 +1,11 @@
 ---
 name: extract
-version: "0.2.0"
+version: "0.2.1"
 description: Smart-fetch URL content and resolve vault image/PDF embeds to extract structured value from any vault note or URL — standalone content extraction following the Content Extraction convention. Supports single note, URL, and batch folder modes.
 user-invocable: true
 argument-hint: "note filename, URL, folder path, or 'batch' for INBOX"
 ---
-<!-- ported-from: extract@0.5.2 sha256:1876c9d77f2d -->
+<!-- ported-from: extract@0.5.3 sha256:ad0cb1cee53f -->
 
 Extract structured value from any note or URL using the [[Content Extraction]] convention. Smart-fetches thin notes, generates an extraction block with summary, takeaways, action items, and vault connections.
 
@@ -47,7 +47,7 @@ Do not extract these:
 2. **Read** the note contents.
 3. **Smart Fetch** — Follow the Smart Fetch Protocol from [[Content Extraction]] and [[smart-fetch]] node:
    - If note body has <500 chars of substantive content AND contains a URL → fetch the URL via WebFetch.
-   - For x.com or twitter.com URLs: replace domain with `api.fxtwitter.com`, strip query params. Always fetch tweets even if note has text.
+   - For x.com or twitter.com URLs: replace domain with `api.fxtwitter.com`, strip query params. Always fetch tweets even if note has text. **Follow the quote:** when the fxtwitter response carries a quoted post (a `quote` object), fetch that post too through the same proxy and capture it as a second source (`### From quoted post: <url>` in the Full Source Text block). A commentary post is only half of its source; when the quote is an article, the quoted post holds all of the substance.
    - For PDFs: read via Read tool.
    - **Vault embeds** — if note is thin AND contains `![[path.(png|jpg|jpeg|webp|pdf)]]`, resolve each embed via Read (multimodal: handles PNG/JPG/PDF natively). **Resolution order**: (1) if basename-only (no `/`), search the vault for that basename under any folder. (2) if directory-prefixed, try literal `{{VAULT_ROOT}}/<path>` FIRST; if the file doesn't exist at that literal path (common when vault restructuring has invalidated the embed's path prefix), **fall back to basename search** across the vault — same semantics as step 1. Emit an info line when fallback fires so the source file's embed path can be updated. Skip non-resolvable extensions (`.xlsx`, `.docx`, `.mp4`, etc.) with a notice. Cap at 5 resolutions per note. Treat extracted content the same as fetched URL content for downstream steps.
    - A note may be enriched by URL, by embed, or by both; embed-only thin notes (no URL) are still enriched.
@@ -68,7 +68,7 @@ Do not extract these:
 When the input is a bare URL (starts with `http://` or `https://`):
 
 1. **Fetch** the URL content:
-   - For x.com/twitter.com: use fxtwitter API proxy.
+   - For x.com/twitter.com: use fxtwitter API proxy. If the tweet quotes another post, fetch the quoted post too (same proxy) and include it as a second source.
    - For all other URLs: fetch directly via WebFetch.
    - If fetch fails, report the error and stop.
 2. **Generate title** — derive a max-6-word descriptive title from the fetched content. Use title case. Capture substance, not source name.
@@ -171,7 +171,7 @@ For each note:
    - Treat the resolved content the same as fetched URL content for the extraction steps that follow.
    - Thin notes that are embed-only (no URL) are still enriched via this path.
    - If BOTH literal and basename resolution fail for a directory-prefixed embed, OR basename returns zero matches, skip with an info line and continue.
-3. For tweets: ALWAYS fetch via api.fxtwitter.com even if the note has some text.
+3. For tweets: ALWAYS fetch via api.fxtwitter.com even if the note has some text. If the response carries a quoted post (a `quote` object), fetch that post too via api.fxtwitter.com and treat it as a second source ("### From quoted post: <url>" in step 6.5) — when the quote is an article, the quoted post holds the substance.
 4. Search for vault connections using the provided index — match by topic keywords.
 5. Generate the extraction block following the format below.
 6. Insert the extraction block at the TOP of the note, immediately after the YAML frontmatter, using the Edit tool. All existing note content must be preserved below.
