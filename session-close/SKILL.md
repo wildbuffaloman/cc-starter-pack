@@ -1,11 +1,11 @@
 ---
 name: session-close
-version: "0.2.0"
+version: "0.3.0"
 description: Close out a session — invoke when user says "close out", "wrap up", "done for now", "save state", "closing out", "end session", "let's close", or similar. Updates project briefs, Area MOCs, Program briefs, contact cards, and Agendas; enforces brief structural hygiene (moves completed items out of Next Actions into the Log, dedups tasks, consolidates Continuation Prompts) and reconciles open Next Actions against reality with evidence-cited staleness probes (propose-only); runs infrastructure drift check, skill codification scan (atomic + composite), INBOX sweep for session-generated files, and retro evaluation.
 user-invocable: true
 argument-hint: "optional: project name or scope hint"
 ---
-<!-- ported-from: session-close@0.17.0 sha256:0354761b0547 -->
+<!-- ported-from: session-close@0.20.1 sha256:408645475e20 -->
 
 Close out the current session by updating all touched vault artifacts and optionally triggering a retrospective.
 
@@ -18,9 +18,9 @@ This skill extends the standard session closeout protocol with three additions:
 
 ## Fast path — re-invocation detection
 
-If this is the **second or later** invocation of `/session-close` in the same conversation (detected by checking whether the active project brief's `Continuation Prompt` was updated within the last 10 minutes), skip phases where state is already correct and only run the delta. Specifically:
+If this is the **second or later completed invocation** of `/session-close` for the same brief in the same conversation, skip phases where state is already correct and only run the delta. Establish the prior close from this conversation's own history, or from a `session-close` record in the session log (below) whose `session_id` and `brief` both match this session — then corroborate it against the close artifacts it should have left. A recently edited Continuation Prompt alone is **not** evidence (another session or a manual edit could have written it), and elapsed time does not cancel a close you can establish. If you cannot establish a prior completed close, run the full workflow. Specifically:
 
-1. Check the active project brief's Continuation Prompt block's referenced date (or the file's mtime). If updated within the last 10 minutes, this is a re-invocation.
+1. Resolve this conversation's session id (`$CLAUDE_CODE_SESSION_ID`) and the active brief. Look for a completed close of that brief in this conversation's history, or in the session log filtered to this `session_id` + `brief`, then verify the brief's Continuation Prompt and the session-log record are actually there. Only that verified match enables delta mode.
 2. **Re-run selectively:**
    - Always re-run Phase 2.5 (Infrastructure Version Control) — the working tree may have changed since the first pass (e.g., new commits landed, files pushed).
    - Always re-run Phase 3 (Retro evaluation) — scoring is cheap and the user may have new context.
@@ -41,7 +41,8 @@ printf '%s\n' "$(jq -n \
   --arg project "$PROJECT_NAME" \
   --arg brief "$BRIEF_PATH" \
   --argjson files_touched "$FILES_TOUCHED_JSON" \
-  '{event:"session-close",ts:$ts,project:$project,brief:$brief,files_touched:$files_touched}')" \
+  --arg session_id "$CLAUDE_CODE_SESSION_ID" \
+  '{event:"session-close",ts:$ts,project:$project,brief:$brief,files_touched:$files_touched,session_id:$session_id}')" \
   >> ~/.claude/session-log.ndjson
 ```
 
@@ -49,8 +50,11 @@ Where:
 - `$PROJECT_NAME` — derived from the active brief (e.g., `acme_pricing_project`)
 - `$BRIEF_PATH` — absolute path to the vault brief
 - `$FILES_TOUCHED_JSON` — JSON array of files this session edited (from git status + Read/Edit tracking)
+- `$CLAUDE_CODE_SESSION_ID` — Claude Code's id for this conversation; the key the fast path uses to recognise a prior close of this same conversation
 
-This log is consumed by future sessions that need to answer "when was the last session on this project, and what did it touch?" — primarily useful during post-compaction recovery and cross-session state drift diagnosis. Do not read it during normal operation — treat it as a write-only ledger until a skill explicitly consumes it.
+This log is consumed by future sessions that need to answer "when was the last session on this project, and what did it touch?" — primarily useful during post-compaction recovery and cross-session state drift diagnosis. The fast path above may read only the records matching the current `session_id` + brief. Otherwise do not read it during normal operation — treat it as a write-only ledger.
+
+When you do query it, filter with `select(type=="object" and .event=="session-close" ...)`: a log that has been written by different versions over time can hold lines that are not JSON objects, and a bare `select(.event ...)` prints an error for each of them.
 
 ## Phase 0 — Deep Work Session Detection
 
@@ -114,7 +118,7 @@ Before starting standard session closeout, check for an active Deep Work session
 `/session-close` accepts an optional project hint. When provided, it forces which project brief every downstream phase updates instead of relying on session inference.
 
 1. **No project hint** — skip this phase and let Phase 1 infer the active brief from the session.
-2. **Project hint present** — search `Projects/` recursively for a fuzzy, case-insensitive match against folder names, brief filenames, and brief titles.
+2. **Project hint present** — search `Projects/` recursively for a fuzzy, case-insensitive match against folder names, brief filenames, and brief titles. **Also search `Areas/` (a few levels deep) for program briefs** — programs usually live in area folders, not under `Projects/`, so a projects-only search reports "no match" for a program that exists.
    - **One strong match** — pin that brief and project name for every downstream phase. Announce the resolved path and that it overrides session inference.
    - **Multiple strong matches** — list the candidates and ask the user which one to use. Do not guess.
    - **No match** — stop, report the search terms used, and ask for the brief path. Never silently fall back to a different inferred project after the user supplied a hint.
@@ -129,6 +133,8 @@ Read and follow `./_bundled/protocols/session-closeout-protocol.md` (the bundled
 - Permission review
 - Lessons log update
 - Cross-pollination check
+
+**Measured-value re-read — the Continuation Prompt must not quote a copy of a system of record.** Whenever the Continuation Prompt is about to state a **count, a status or a roster** whose truth lives in an external system — a spreadsheet, a database, an API, a form's responses — re-read that system before writing the number, and say in the prompt which source you read. Never carry the figure forward from the brief, its Log, or the previous prompt: those are copies, and a copy of a live system is stale from the moment it was last synced. If the project keeps a working tracker that is filled from an upstream source, name **both** in the prompt — which one is authoritative and which one is the copy — so the next session knows the refresh comes first. Phase 1.7 cannot catch this: a prompt quoting a five-day-old number scores a clean 5/5, because every rubric check is about shape. Example of the failure: a brief and its tracker both said *2 of 19* forms received while the form's own response sheet held *13 of 19* — a prompt written from the brief would have sent the next session to chase seventeen people who had mostly already answered. Cost of the check: two reads.
 
 The vault working directory is {{VAULT_ROOT}}. Some phases below also reference `{{AGENT_DIR}}` — wherever you keep your Claude Code skills, hooks, and maintenance scripts (e.g. `~/.claude`).
 
@@ -258,6 +264,7 @@ These are plain checks, not model judgment. Flag an item when a probe hits, and 
 | **Version-pin regression** | the item pins `vX.Y.Z` of something whose current version is already higher | both version strings |
 | **Expired scheduled check** | a "verify on `<date>`" item whose date is more than 21 days past | the date vs today |
 | **Supersession range** | the item's leading `(N)` ordinal falls inside a range a Log row declares superseded | the Log row's date and the step range it names |
+| **Counterparty reply** | a `## Waiting For` item names an email thread, a chat message, or a person you can look up, AND that thread carries an **inbound** reply dated after the item. Only when you have a mail or chat connector that can read it. For a chat message, open its thread (a channel listing does not show threaded replies); for a direct-message conversation, read forward from the item's own message rather than the latest few — an unrelated newer exchange can bury the answer | the reply's date, who sent it, and where it is |
 
 Probes justify a *question*, never a verdict.
 
@@ -287,7 +294,7 @@ Next-Actions reality check: N scanned, M flagged, K retired, J kept
 ### Rules
 
 - Propose-only, always — even a 100 %-certain hit (a script that demonstrably no longer exists) is surfaced, not auto-applied. Cost of asking: seconds. Cost of a wrong auto-retire: a real commitment silently disappears.
-- `## Waiting For` items flag only on the deterministic probes. Whether a counterparty delivered is exactly the kind of truth this phase must not decide on its own.
+- `## Waiting For` items flag only on the deterministic probes. Whether a counterparty delivered is exactly the kind of truth this phase must not decide on its own. **But observing is not judging:** reading that a reply *exists* in the thread the item names is evidence collection, not a verdict — the item still surfaces propose-only, and only the user retires it. `## Waiting For` is the one item class resolved by an *inbound* event, so without the counterparty-reply probe nothing looks where its resolution actually lands, and a person who answered weeks ago keeps being reported as the bottleneck.
 - This phase only retires items. It never adds them, never rewords beyond an approved `[E]dit`, and never reprioritizes.
 - Scope is the **active brief only**. Sweeping the whole backlog is a separate job, not something a per-session close should attempt.
 
@@ -684,7 +691,7 @@ For each moved file, the session closeout is not complete until both:
 1. File has been moved to destination
 2. Wikilink to the moved file has been added to the referenced brief / MOC / wiki page (or `/compile` has been invoked for wiki-worthy content)
 
-Verify post-move: a quick `grep` of the moved file's filename across the vault should return at least one wikilink match.
+Verify post-move: a quick `grep` of the moved file's filename across the vault should return at least one wikilink match. **Also verify the source is gone** — `test -f "<old path>"` must be false. A "move" that leaves the original behind is a copy, and when the destination keeps the same filename, two same-named notes in different folders make wikilinks ambiguous: an existing `[[filename]]` can silently resolve to the stale copy instead of the routed one. Delete the leftover (or confirm the tool that moved it already did) before declaring routing complete.
 
 ### 2.8e: Report
 
@@ -759,6 +766,7 @@ Acknowledge and close out. The session closeout from Phase 1 is already complete
 ### Optional
 
 - **helper-script sync_vault_indexes.sh** — refreshes per-program sub-project indexes + Program Hierarchy dashboard during Phase 2c. Fallback if not available: Phase 2c soft-skips with a printed notice and closeout continues (this script is optional and, if you sync this vault across more than one machine, may only exist on one of them). Location: `{{AGENT_DIR}}/scripts/sync_vault_indexes.sh`.
+- **mcp mail or chat connector** (e.g. Gmail, Slack) — lets the Phase 1.95 counterparty-reply probe read the thread a `## Waiting For` item names. Fallback if unavailable: that one probe is skipped; every other probe runs.
 
 ### Vault Conventions
 

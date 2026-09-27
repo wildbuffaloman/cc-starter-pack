@@ -107,8 +107,8 @@ Most comprehensive mode. Vault Contacts + Google Contacts multi-account + vault 
 import subprocess, json, os
 
 accounts = [
-    ("you@work-example.com", {"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": os.path.expanduser("~/.config/gws-work")}),
-    ("you@gmail-example.com", {"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": os.path.expanduser("~/.config/gws-personal")}),
+    ("work-account", {"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": os.path.expanduser("~/.config/gws-work")}),
+    ("personal-account", {"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": os.path.expanduser("~/.config/gws-personal")}),
 ]
 
 for label, extra_env in accounts:

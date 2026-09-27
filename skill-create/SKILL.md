@@ -1,11 +1,11 @@
 ---
 name: skill-create
-version: "0.1.0"
+version: "0.1.1"
 description: Create a new Claude Code skill — guided conversation to define the skill's purpose, triggers, steps, and rules, then generate and install the SKILL.md file.
 user-invocable: true
 argument-hint: "skill name or description of what the skill should do"
 ---
-<!-- ported-from: skill-create@0.2.1 sha256:55fabf8f42db -->
+<!-- ported-from: skill-create@0.4.0 sha256:b5786789966b -->
 
 Create a new Claude Code custom skill through a guided interactive process — define its purpose, invocation pattern, steps, and rules, then generate and install the SKILL.md file into `~/.claude/skills/`.
 
@@ -40,6 +40,8 @@ Scan `~/.claude/skills/` to:
 - Check if a skill with the same or similar name already exists (warn if so)
 - Find skills with similar patterns that can serve as structural templates
 - Read 1-2 relevant existing SKILL.md files to match the user's established conventions
+- **Functional-overlap scan:** identify any existing skill whose modes, scope, or workflow overlaps with the proposed one. Read the full SKILL.md of suspected overlaps — not just the one-line description. **When a candidate has a `scripts/`, `nodes/` or `references/` directory, list it before concluding what the skill can do** — capability can live entirely in those files and be absent from the prose, so reading the SKILL.md alone can understate a skill by an order of magnitude.
+- If an overlap is found and the user still wants a separate skill, the new description must name each overlapping neighbour in a sentence of the form **"Not for X, use Y."** (Y = the neighbour's name). That line records the scope split so the model picks the right skill; it does not replace the extend-vs-new decision.
 
 Present findings briefly — existing conflicts, suggested structural patterns.
 
@@ -119,6 +121,7 @@ argument-hint: "<hint text>" # only if user-invocable
 - Use imperative voice in steps ("Read the file", not "The file should be read")
 - Steps that need user input should use AskUserQuestion
 - Reference tools by their actual names (Read, Write, Edit, Glob, Grep, Bash, Agent, WebSearch, etc.)
+- **Never spell out Claude Code's load-time expansions literally when you only mean to describe them.** Claude Code expands two patterns *while loading* a SKILL.md: dynamic shell injection (a `!` immediately followed by a backtick-quoted command) and the argument-substitution tokens (a `$` immediately followed by `ARGUMENTS`, or by a positional digit). Written inside prose or a code span as an example, they still expand — the injection form makes the skill fail to load (`command not found`), and the argument tokens splice the caller's whole invocation string into the middle of your instructions. Describe them in words, as this bullet does. If a step needs a command's output, make it an explicit numbered step that runs the command.
 - Keep rules actionable and specific — no vague "be careful" statements
 - If the skill interacts with the Obsidian vault, include a Vault Exception section specifying what it may read/write/modify
 
