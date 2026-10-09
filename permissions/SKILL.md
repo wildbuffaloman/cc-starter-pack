@@ -1,9 +1,9 @@
 ---
 name: permissions
-version: "0.1.0"
-description: Display current Claude Code permission settings and allowed tools
+version: "0.1.1"
+description: Show the current Claude Code permission setup by reading the project, local and user settings.json files and summarizing which tools are allowed or denied. Use when the user asks what is allowed, why a tool or command is blocked, about permission prompts or allow/deny lists, or how to change permissions.
 ---
-<!-- ported-from: permissions@0.1.0 sha256:23c566ed8c19 -->
+<!-- ported-from: permissions@0.1.0 sha256:888b1037a002 -->
 
 Show the user the current permission configuration:
 

@@ -1,11 +1,11 @@
 ---
 name: session-close
-version: "0.3.0"
+version: "0.4.0"
 description: Close out a session — invoke when user says "close out", "wrap up", "done for now", "save state", "closing out", "end session", "let's close", or similar. Updates project briefs, Area MOCs, Program briefs, contact cards, and Agendas; enforces brief structural hygiene (moves completed items out of Next Actions into the Log, dedups tasks, consolidates Continuation Prompts) and reconciles open Next Actions against reality with evidence-cited staleness probes (propose-only); runs infrastructure drift check, skill codification scan (atomic + composite), INBOX sweep for session-generated files, and retro evaluation.
 user-invocable: true
 argument-hint: "optional: project name or scope hint"
 ---
-<!-- ported-from: session-close@0.20.1 sha256:408645475e20 -->
+<!-- ported-from: session-close@0.20.23 sha256:1ceacfad3d1a -->
 
 Close out the current session by updating all touched vault artifacts and optionally triggering a retrospective.
 
@@ -16,6 +16,14 @@ This skill extends the standard session closeout protocol with three additions:
 2. **INBOX sweep for session-generated files** — review and route out artifacts (manifests, lint reports, triages) this session dropped in `Inbox/`, lifting any buried follow-up items into briefs with wikilinks back to source
 3. **Retro evaluation** — a quick assessment of whether the session's work warrants a retrospective
 
+## Final reply contract
+
+Every full close ends with the Phase 3 retro verdict in the reply you show the user: the score, which indicators triggered, and the outcome (not recommended / offered / declined / completed). When you offer a retro and the user has not answered yet, that offer is the **last paragraph** of the reply. A mention earlier in the reply, a line in a report file, or a question the user has not answered does not count as delivering it, and an unanswered offer stays pending — never record it as declined. Other approvals you are waiting on do not displace it. Record "declined" or "completed" only from an explicit answer or a retro that actually ran.
+
+## Reading this workflow
+
+Read the Overview, Rules and Dependencies once, then list the phase headings. Read each applicable phase in full before running it, load the protocols a phase references when you reach that phase, and keep a checklist that marks every phase executed, skipped with a reason, or blocked. A phase you only half-read is not a phase you ran.
+
 ## Fast path — re-invocation detection
 
 If this is the **second or later completed invocation** of `/session-close` for the same brief in the same conversation, skip phases where state is already correct and only run the delta. Establish the prior close from this conversation's own history, or from a `session-close` record in the session log (below) whose `session_id` and `brief` both match this session — then corroborate it against the close artifacts it should have left. A recently edited Continuation Prompt alone is **not** evidence (another session or a manual edit could have written it), and elapsed time does not cancel a close you can establish. If you cannot establish a prior completed close, run the full workflow. Specifically:
@@ -24,7 +32,8 @@ If this is the **second or later completed invocation** of `/session-close` for 
 2. **Re-run selectively:**
    - Always re-run Phase 2.5 (Infrastructure Version Control) — the working tree may have changed since the first pass (e.g., new commits landed, files pushed).
    - Always re-run Phase 3 (Retro evaluation) — scoring is cheap and the user may have new context.
-   - **Skip** Phase 0 (Deep Work), Phase 1 cross-linking, Phase 1 permission review, Phase 1 agent-runtime infrastructure check, Phase 2b Area MOCs, Phase 2c vault index sync (already ran), Phase 2.4 contact sync, and Phase 2.7 skill codification — none of these change on a second pass in the same conversation.
+   - **Always re-evaluate the Phase 0.6 impact list** — add any project worked on or directly affected since the first close and give it its own Phase 1 update. If the list grew, re-run Phase 2c too; an unchanged list makes 2c a logged no-op.
+   - **Skip** Phase 0 (Deep Work), Phase 1 cross-linking, Phase 1 permission review, Phase 1 agent-runtime infrastructure check, Phase 2b Area MOCs, Phase 2c vault index sync (unless the impact list grew — see above), Phase 2.4 contact sync, and Phase 2.7 skill codification — none of these change on a second pass in the same conversation.
    - **Conditionally re-run** Phase 1 brief updates and Phase 1 lessons.md — only if the user did something between the two invocations (committed code, ran a command, made a decision). If nothing changed, just report "no delta, everything from first pass still holds."
 3. **Announce the fast path** at the start: "Second `/session-close` in this conversation — running delta-only mode. Phases X/Y/Z skipped (already ran first pass), phases A/B re-running because state may have changed."
 
@@ -123,7 +132,15 @@ Before starting standard session closeout, check for an active Deep Work session
    - **Multiple strong matches** — list the candidates and ask the user which one to use. Do not guess.
    - **No match** — stop, report the search terms used, and ask for the brief path. Never silently fall back to a different inferred project after the user supplied a hint.
 
-When a forced target is pinned, Phase 1 must use it and skip its own brief search. If the observed work appears to concern another project, warn once, honor the forced target, and leave the other brief untouched.
+A resolved hint pins that brief as the **primary** target: Phase 1 uses it for the primary update and skips its own brief search. It does not shut out other work — Phase 0.6 still lists every other project this session worked on or directly affected, and each gets its own update. If the observed work actually belongs to another project, say so, report both roles, and update both where the evidence requires it; never log that work in the forced brief. If the user explicitly asked to update only one brief, that instruction wins.
+
+## Phase 0.6 — Session Impact List (all projects, not just the primary)
+
+Before updating any brief, build one deduplicated table: `Artifact | Session evidence / direct dependency | Required update | Verification`. Include every project worked on this session, plus every project whose inputs, deliverables, blockers, milestones or next actions changed directly because of this session. A forced target (Phase 0.5) pins the primary brief; it does not exclude other worked projects or their downstream consumers.
+
+Read each candidate's current brief. Search for project and program briefs that link to the ones you worked on, and follow explicit parent, sub-project and consumer relationships — but a shared area or a link alone is not proof of impact. Add parent programs and the relevant Area MOCs and agendas to the same list. For a downstream project, record the dependency that actually changed; if the consequence is ambiguous, ask that specific question and carry on with the verified updates.
+
+Apply Phase 1 and its brief/Continuation-Prompt checks to each worked or directly affected project. Update only the sections the session changed: keep a still-valid Continuation Prompt, carry over evidenced completions and blocker changes, and never mark a downstream task done just because its input became available. Phase 2 works from this same list; report coverage of every listed artifact, including justified no-ops.
 
 ## Phase 1 — Standard Session Closeout
 
@@ -135,6 +152,8 @@ Read and follow `./_bundled/protocols/session-closeout-protocol.md` (the bundled
 - Cross-pollination check
 
 **Measured-value re-read — the Continuation Prompt must not quote a copy of a system of record.** Whenever the Continuation Prompt is about to state a **count, a status or a roster** whose truth lives in an external system — a spreadsheet, a database, an API, a form's responses — re-read that system before writing the number, and say in the prompt which source you read. Never carry the figure forward from the brief, its Log, or the previous prompt: those are copies, and a copy of a live system is stale from the moment it was last synced. If the project keeps a working tracker that is filled from an upstream source, name **both** in the prompt — which one is authoritative and which one is the copy — so the next session knows the refresh comes first. Phase 1.7 cannot catch this: a prompt quoting a five-day-old number scores a clean 5/5, because every rubric check is about shape. Example of the failure: a brief and its tracker both said *2 of 19* forms received while the form's own response sheet held *13 of 19* — a prompt written from the brief would have sent the next session to chase seventeen people who had mostly already answered. Cost of the check: two reads.
+
+**Current-status consistency check (every worked and directly affected brief).** After the updates, compare the Continuation Prompt, Current Approach, Next Actions, Waiting For, any live/beta pointers and the current Working Notes against the same verified evidence — a release the Continuation Prompt calls live must not still read "awaiting approval" in another section. Correct each contradiction in place, leaving dated historical records (Log rows, earlier session notes) as they are. When something prevents an update, report the exact file, section and stale claim as unresolved instead of calling the brief reconciled. Add to the close report: `Current-status consistency: N briefs checked, M contradictions corrected, K unresolved (file/section)`.
 
 The vault working directory is {{VAULT_ROOT}}. Some phases below also reference `{{AGENT_DIR}}` — wherever you keep your Claude Code skills, hooks, and maintenance scripts (e.g. `~/.claude`).
 
@@ -340,9 +359,9 @@ Batch proposals in a single list if multiple drifts detected. Accept user's yes/
 
 After completing the standard closeout, update related artifacts that were affected by the session's work.
 
-### 2a: Identify Touched Artifacts
+### 2a: Confirm Affected Artifacts
 
-Review the session's work and identify:
+Reconcile the Phase 0.6 impact list against the work actually completed, including results from agents that finished late. Cover all worked projects and directly affected related or downstream projects, plus:
 - **Area MOCs** (`Areas/XX AREA/XX AREA.md`) — the area-level index files for areas the work touched
 - **Program briefs** (`Areas/` files with `category: program`) — parent programs of projects worked on
 - **Agendas** (`Areas/**/AGENDAS/` or `Areas/**/Agenda*.md`) — meeting agendas where session work produced items to discuss
@@ -711,6 +730,11 @@ INBOX Sweep:
 - Never touch INBOX files this session did NOT generate without explicit user approval — they may be staged by other workflows or earlier sessions.
 - Always preserve source wikilinks when lifting items into briefs — future readers need to trace residuals back to their origin report.
 - **Always add linking when routing** — per [[Linking Conventions]] Hard-Coded Reference Rule. A routed-but-unlinked file is an orphan.
+- **Rewrite raw-path references BEFORE moving an INBOX file out.** Wikilinks follow a move (Obsidian resolves them by filename); literal paths do not — a script argument, a scheduled job's config, a handoff note's "files to load first" list. For each file about to leave INBOX run
+  ```bash
+  grep -rlF --exclude-dir=.git --exclude-dir=Archives "Inbox/<basename without .md>" "{{VAULT_ROOT}}"
+  ```
+  (add any folder outside the vault where you keep scripts or job configs) and rewrite every hit to the destination path — skip `.md` hits whose only reference is a `[[wikilink]]`. Re-run after the move: 0 hits is the pass condition. **Off-disk references too:** a reminder, calendar event or task card this session created whose text names the INBOX path never shows up in that grep — find it and point it at the new location as well.
 - **Default to routing, not keeping.** "Keep in INBOX" is the exception, not the norm.
 - If the session was purely conversational (no file generation), skip this phase with one-line note: "INBOX Sweep: no session-generated files."
 
@@ -732,9 +756,11 @@ Score the session against these indicators. Each YES adds 1 point:
 
 ### Decision Logic
 
-- **0-1 points:** No retro needed. Inform the user: "No retro indicators triggered — skipping."
+- **0-1 points:** No retro needed. Report the actual score and the indicators that triggered: "No retrospective recommended." One triggered indicator is not zero.
 - **2-3 points:** Suggest retro. Present the triggered indicators and ask: "A lightweight retro could be valuable. Want me to run `/retro`?"
 - **4+ points:** Strongly recommend retro. Present the triggered indicators and say: "Multiple retro indicators triggered — I'd strongly recommend running `/retro` before closing out."
+
+Whatever the score, the verdict goes in the final reply as the Final reply contract above describes.
 
 ### If User Approves
 
@@ -750,7 +776,7 @@ Acknowledge and close out. The session closeout from Phase 1 is already complete
 - Phase 2 artifact updates follow vault protection rules — copy to INBOX if modifying canonical files, unless the file is a project brief being updated per closeout protocol
 - Phase 2 updates are surgical — only reflect changes from this session, don't reorganize or restructure
 - Phase 3 is advisory — the user always decides whether to run a retro
-- If no projects were worked on (purely exploratory/conversational session), skip Phase 2 and still run Phase 3
+- If no projects were worked on or directly affected, Phase 0.6 records an empty impact list, Phase 2 is a reported no-op, and Phase 3 still runs
 - Present the retro evaluation transparently — show which indicators triggered and which didn't
 
 ## Dependencies

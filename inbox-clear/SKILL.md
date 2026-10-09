@@ -1,11 +1,11 @@
 ---
 name: inbox-clear
-version: "0.1.0"
+version: "0.2.0"
 description: "Clear your inbox folder using the GTD decision tree — classify every item, propose a destination for each, and execute only what you approve. Two-phase: a read-only classification pass writes a manifest of checkbox decisions, then an execution pass acts on the boxes you tick. Use when the user says 'clear the inbox', 'inbox triage', 'process my inbox', or '/inbox-clear'."
 user-invocable: true
 argument-hint: "optional filename to process a single note, or no argument to clear the whole inbox"
 ---
-<!-- ported-from: inbox-clear@0.16.0 sha256:59235bdf9780 -->
+<!-- ported-from: inbox-clear@0.17.4 sha256:bf29cde74545 -->
 
 Clear your inbox folder using GTD methodology — classify every item, propose concrete actions, and execute after your approval.
 
@@ -72,6 +72,10 @@ Three layers, all mandatory on every move this skill performs:
 Always give `mv` a **full destination path including the filename**, never a bare directory — that is precisely the trap above.
 
 > **Never report a move you did not verify.** Only a move confirmed present at its destination may appear as completed in the execution report. Do not print a size, a hash, or a rollback command computed from what you *intended* to do — read them back from the destination *after* the move, or omit them. A report that fabricates evidence is worse than one that admits an error, because it looks more trustworthy than reality.
+
+### Hard-coded paths — rewrite them before the move
+
+The three layers prove the bytes arrived; they cannot see who else still points at the old path. `[[Wikilinks]]` follow a move on their own (your vault app resolves them by note name). **Literal paths do not** — a file list in a handoff note, a path inside another manifest, a script argument. Before moving any file out of the inbox, search the vault (skipping `04 ARCHIVES/`) for the literal text `00 INBOX/<filename without .md>` and rewrite every hit to the new path. A hit that only holds a `[[wikilink]]` needs nothing. If you cannot rewrite a hit (it belongs to something you should not edit), do not move the file: report the item and name what still uses that path. Otherwise the move succeeds and whatever reads that path fails silently later.
 
 ## GTD Decision Tree
 
@@ -153,12 +157,18 @@ For each inbox item:
 
 ## Phase 1 — Classify and Propose (read-only)
 
-0. **One open manifest at a time.** Before scanning, look in the inbox for an earlier `*-inbox-manifest.md` that was never executed (Phase 2 step 5 moves a manifest out once it has run, so one still sitting in the inbox was never approved). Count its ticked `- [x]` lines:
-   - **0 ticks** — nobody engaged with it, and this run re-classifies the live inbox anyway, so the new manifest supersedes it. Tell the user, and with their OK move the old one to `04 ARCHIVES/` (all three move-safety layers) before writing the new one.
-   - **1 or more ticks** — **stop and write nothing.** The user has started approving that manifest; a second one would fork their decisions across two files. Say which manifest is open and how many lines are ticked, and offer to run Phase 2 on it now. Sweep again only after it has been executed and moved out.
+0. **One open manifest at a time.** Before scanning, look in the inbox for an earlier `*-inbox-manifest.md` that was never executed (Phase 2 step 6 moves a manifest out once it has run, so one still sitting in the inbox was never approved). Count what the user did on it: its ticked `- [x]` lines **plus any line where they wrote a note or instruction** (both mean they started working through it):
+   - **0 ticks and no notes** — nobody engaged with it, and this run re-classifies the live inbox anyway, so the new manifest supersedes it. Tell the user, and with their OK move the old one to `04 ARCHIVES/` (all three move-safety layers) before writing the new one.
+   - **Any tick or note** — **stop and write nothing.** The user has started approving that manifest; a second one would fork their decisions across two files. Say which manifest is open and which lines they touched, and offer to run Phase 2 on it now. Sweep again only after it has been executed and moved out.
 1. List every top-level entry in the inbox — **all file types, plus folders**, not just markdown.
 2. Run the GTD tree on each.
 3. Write the manifest to the inbox as `YYYY-MM-DD-inbox-manifest.md`, with today's date read **at write time**. The name is fixed: **never add a suffix** (`-2`, `-b`, a time) to get around an existing file — a name collision is step 0's situation, not a naming problem. **Every checkbox is written unticked `[ ]`**, including STAY blocks; step 0 of the next run tells an abandoned manifest from one in progress by counting ticks, so one pre-ticked line would make every stale manifest look active.
+
+   **The manifest is the last thing you write, and only from facts you re-checked at that moment.** A long run can outlive what you saw at the start. Right before writing:
+   - Confirm every item is **still in the inbox**. One that has gone since you classified it gets a one-line entry under `## Already gone`, never a decision block.
+   - Confirm **each item appears in exactly one block** — merge any duplicates.
+   - Count `Items: N` **from the blocks you are about to write**, never from memory.
+   - If a file **already exists** at the manifest path, do not overwrite it — go back to step 0.
 4. **Change nothing else.** Phase 1 never moves, edits, or deletes a file (the only exception is the step-0 supersede, and only with the user's OK).
 
 > **Never claim what you did not read.** If you classified from a filename and frontmatter without opening the body, you may not propose DELETE or MERGE on a suspected duplicate (a title match is a hypothesis *about* content, not a reading of it — a "duplicate" is sometimes a superset, and deleting it destroys the only complete copy). Emit it as **`HELD — duplicate suspected, needs diff`**, naming the note it may duplicate, and leave the file where it is. Do not downgrade it to ROUTE TO READ-REVIEW: a HELD reads as a check still waiting for evidence, while a read-review route reads as a settled decision and buries the question. Neither may you emit a confidently-targeted task. Say what you actually inspected, and propose the weaker, reversible disposition instead.
@@ -193,17 +203,21 @@ Untick or delete a line to reject it. An unticked line does NOT happen.
 ### [[Open Draft]]
 - [ ] **STAY** · `00 INBOX/` · status: draft
   - ℹ️ in-progress status — kept for your review. To route it out instead, replace STAY with another disposition and destination, then tick the line.
+
+## Already gone
+- `Old Agenda.md` — no longer in the inbox when this manifest was written
 ```
 
 > **A STAY is a proposal, not a non-decision.** Items the tree keeps in the inbox get a decision block like every other item — never a checkbox-less table or a passing mention. STAY is the skill's inference, and you need a way to disagree with it on the page. Ticking a STAY line without changing it does nothing (it agrees with the proposal).
 
 ## Phase 2 — Execute (after approval)
 
-1. **Re-check every ticked item still exists** at the path the manifest recorded. Files move between passes. If it is gone, or has already been filed somewhere sensible that is *not* the approved destination, **report it — do not execute.** Honoring a stale row would move a correctly-filed note back out of its home.
-2. Execute each ticked line, using the three move-safety layers on every move.
-3. **Deletes come last**, only for explicitly-approved items, and only after the manifest is saved.
-4. Write an execution report: files moved, tasks created, files deleted, files skipped, and every error.
-5. Move the completed manifest out of the inbox — it is an inbox item too.
+1. **Re-check every ticked item still exists** at the path the manifest recorded. Files move between passes. If it is gone, or has already been filed somewhere sensible that is *not* the approved destination, **report it — do not execute.** Honoring a stale row would move a correctly-filed note back out of its home. A separate case: if it turned up in `04 ARCHIVES/`, another session archived it in the meantime. An archive is not a filing decision, so tell the user and offer to restore it to the approved destination.
+2. **Before any archive or delete, check whether an open task still needs the file.** Search the vault outside `04 ARCHIVES/` for open `- [ ]` lines that wikilink the file's name. Still execute the user's decision — this is a warning, not a veto — but list each hit in the report under `## ⚠ Still needed by open tasks` as `[[file]] → open task "<task text>" in [[note]]`. Otherwise the task's only input disappears and nobody notices until the task stalls.
+3. Execute each ticked line, using the three move-safety layers (and the hard-coded-path rewrite) on every move.
+4. **Deletes come last**, only for explicitly-approved items, and only after the manifest is saved.
+5. Write an execution report: files moved, tasks created, files deleted, files skipped, every error, and anything still needed by an open task.
+6. Move the completed manifest out of the inbox — it is an inbox item too.
 
 ## Rules
 

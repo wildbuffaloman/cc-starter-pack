@@ -1,11 +1,11 @@
 ---
 name: project-create
-version: "0.3.1"
-description: Create a Project or Program brief through research, interactive Q&A, template application, vault linking, and INBOX delivery for review. Projects use a two-phase flow — Phase 1 (Scoping) drafts the brief, Phase 2 (Review & Commit) iterates, then creates a dedicated folder and assigns final status.
+version: "0.4.0"
+description: Creates a Project or Program brief through research, an overlap check against existing briefs, scoping Q&A and the brief template, then files a project in its own folder after review. Use when asked to start, create, scope or set up a project or program, or turn an idea or Inbox note into a brief. Takes a note path, Inbox title or topic.
 user-invocable: true
 argument-hint: "note path, note title in INBOX, or topic description"
 ---
-<!-- ported-from: project-create@0.4.0 sha256:af3eabce65bd -->
+<!-- ported-from: project-create@0.5.1 sha256:90060fbba720 -->
 
 Create a Project Brief or Program Brief through a structured interactive process — research the input, run a guided Q&A to scope the initiative, decide project vs. program, apply the correct template, link to relevant vault notes and external references, and deliver for review.
 
@@ -130,6 +130,7 @@ Run an adaptive Q&A to fill in all sections of the brief. Use AskUserQuestion wi
 9. **Prior work** — Has anything been done before? What exists already?
 10. **Risks** — What could derail this? What are the top 2-3 risks?
 11. **Success metrics** — How will you measure success? What KPIs matter?
+    **System projects: a deferral is the FIRST option.** When the project builds a system or a capability rather than moving a number (an "AI Operating System", a second brain, a toolchain, an automation platform), the user usually cannot name a KPI at scoping time, and pressing for one produces an invented metric. Tell it from the Outcome (Q2): it describes something to *have and operate*, not a quantity to *reach*. Then the first AskUserQuestion option is "Not sure yet — we'll define it later" (in the user's language; «Todavía no sé — lo definimos después» in Spanish), ahead of the KPI options from research. On that answer, write no metric: add one Next Action, "Define success metrics once <first milestone> is running", and keep the Outcome an observable end state even though it carries no number. Projects with a target quantity or a deadline-bound result keep the normal question.
 12. **AI-specific instructions** *(optional — skip if none)* — Are there project-unique AI rules not already covered by the area CLAUDE.md? Examples: terminology/glossary, specific tools or MCPs to always use, process conventions (e.g., "always run `/deep-research` before proposing"). If yes, capture them; they will land under `### AI Context` inside Working Notes. If "no" or "covered at area level", skip — do not create an empty section.
 
 Not all questions apply to every project. Skip questions that are irrelevant or already answered by the input note. Add topic-specific questions based on the research phase findings.
@@ -163,8 +164,7 @@ Apply the correct template based on the decision. For **Projects**, the Continua
 Frontmatter: description, AREA, SUB-AREA, category: project, status (active|delegated|incubating|blocked|someday-maybe), tags, owner: "[[Name]]", parent: "[[Program]]" (required — must point to a program), depends_on (array of wikilinks), feeds (array of wikilinks), learns_from (array of wikilinks)
 H2 Outcome — one sentence blockquote
 H2 Why This Matters — success stakes, failure stakes
-H2 Continuation Prompt — empty template for session handoffs
-H2 Next Actions — concrete next steps from Q&A
+H2 Next Actions — first subsection is `### Continuation Prompt` (empty template for session handoffs; `/session-close` reads and rewrites it there — never a standalone `## Continuation Prompt` H2), then the concrete next steps from Q&A
 H2 Waiting For — items from other people
 H2 Dependencies — human-readable list of dependencies with wikilinks and descriptions
 H2 AI Ecosystem — Feeds Into (table), Learns From (table)
@@ -181,8 +181,7 @@ H1 Title
 H2 Outcome — one paragraph blockquote
 H2 Why This Matters — success stakes, failure stakes
 H2 Sub-Project Index — table: #, Sub-Project (wikilink embedded in name), Status, Description
-H2 Continuation Prompt — empty template
-H2 Next Actions
+H2 Next Actions — first subsection is `### Continuation Prompt` (empty template — never a standalone `## Continuation Prompt` H2), then concrete next steps
 H2 Dependencies — human-readable list of dependencies with wikilinks and descriptions
 H2 AI Ecosystem — Feeds Into (table), Learns From (table)
 H2 Waiting For
@@ -193,7 +192,7 @@ H2 Log
 ```
 
 **Content quality standards:**
-- Outcome must be one sentence for projects, one paragraph for programs — concrete and measurable
+- Outcome must be one sentence for projects, one paragraph for programs — concrete and measurable (a system project is measurable as an observable end state; its KPI may be deferred, see Q11)
 - Why This Matters must connect to real stakes — strategic plans, OKRs, business impact
 - Next Actions must be concrete and actionable — no vague "research X" without specifying what to research and where
 - Working Notes contain research findings, frameworks, and context gathered during the process — the institutional memory. When a project has AI-specific instructions that aren't already covered by area-level CLAUDE.md (project-unique terminology, tool preferences, process conventions), add them under an `### AI Context` H3 subsection. Do not duplicate area-level rules here — those auto-load via the CLAUDE.md chain.
@@ -205,12 +204,14 @@ H2 Log
 
 **4a — Phase 2 Activation block (Projects only)**
 
-For projects, populate the `## Continuation Prompt` section with this activation text (substitute `<Brief Name>` with the actual filename stem). Do **not** use the standard empty handoff template — that is only restored after Phase 2 finalizes in Step 6.
+For projects, place a `### Continuation Prompt` subsection at the **top of the `## Next Actions` section** — never a standalone `## Continuation Prompt` H2 — and populate it with this activation text (substitute `<Brief Name>` with the actual filename stem). The concrete Next Action items follow the block, still under `## Next Actions`. Do **not** use the standard empty handoff template — that is only restored after Phase 2 finalizes in Step 6.
 
 > **Measured values come from the system of record, never from the brief.** If the text you write here states a count, status or roster whose truth lives in an external Sheet, database or API, re-read that source first and name it. The brief, its `## Log` and any earlier Continuation Prompt are all *copies*, and they go stale the moment the last sync ran.
 
 ```markdown
-## Continuation Prompt
+## Next Actions
+
+### Continuation Prompt
 
 > **Status: DRAFT — Phase 2 pending**
 > **Created by:** `/project-create`
@@ -302,9 +303,9 @@ Execute in order:
 1. Create the folder `Projects/<Brief Name>/` (use the exact filename stem, no `.md` extension).
 2. Move the brief file from `Inbox/<Brief Name>.md` to `Projects/<Brief Name>/<Brief Name>.md` (prefer `mv` via Bash to preserve timestamps).
 3. Update the `status:` frontmatter field in the moved file to the user's choice (`active` or `incubating`).
-4. Replace the Phase 2 activation Continuation Prompt block with the standard empty handoff template:
+4. Replace the Phase 2 activation Continuation Prompt block (the `### Continuation Prompt` subsection at the top of `## Next Actions`) with the standard empty handoff template — keep it as `### Continuation Prompt` under `## Next Actions`, never a standalone `## Continuation Prompt` H2:
    ```markdown
-   ## Continuation Prompt
+   ### Continuation Prompt
 
    > **Date:**
    > **Mode:**

@@ -1,11 +1,11 @@
 ---
 name: skill-create
-version: "0.1.1"
+version: "0.2.0"
 description: Create a new Claude Code skill — guided conversation to define the skill's purpose, triggers, steps, and rules, then generate and install the SKILL.md file.
 user-invocable: true
 argument-hint: "skill name or description of what the skill should do"
 ---
-<!-- ported-from: skill-create@0.4.0 sha256:b5786789966b -->
+<!-- ported-from: skill-create@0.5.0 sha256:37417b2ced26 -->
 
 Create a new Claude Code custom skill through a guided interactive process — define its purpose, invocation pattern, steps, and rules, then generate and install the SKILL.md file into `~/.claude/skills/`.
 
@@ -41,7 +41,7 @@ Scan `~/.claude/skills/` to:
 - Find skills with similar patterns that can serve as structural templates
 - Read 1-2 relevant existing SKILL.md files to match the user's established conventions
 - **Functional-overlap scan:** identify any existing skill whose modes, scope, or workflow overlaps with the proposed one. Read the full SKILL.md of suspected overlaps — not just the one-line description. **When a candidate has a `scripts/`, `nodes/` or `references/` directory, list it before concluding what the skill can do** — capability can live entirely in those files and be absent from the prose, so reading the SKILL.md alone can understate a skill by an order of magnitude.
-- If an overlap is found and the user still wants a separate skill, the new description must name each overlapping neighbour in a sentence of the form **"Not for X, use Y."** (Y = the neighbour's name). That line records the scope split so the model picks the right skill; it does not replace the extend-vs-new decision.
+- If an overlap is found and the user still wants a separate skill, the new skill must name each overlapping neighbour in a sentence of the form **"Not for X, use Y."** (Y = the neighbour's name), under its own **`## When not to use`** section — not in the description, which stays short (a sentence there still works, but it costs space in the skill list). That line records the scope split so the model picks the right skill; it does not replace the extend-vs-new decision.
 
 Present findings briefly — existing conflicts, suggested structural patterns.
 
@@ -50,7 +50,8 @@ Present findings briefly — existing conflicts, suggested structural patterns.
 Based on the answers, draft the skill design and present it to the user for approval:
 
 - **Name** (kebab-case)
-- **Description** (one sentence for the frontmatter)
+- **Description** — a listing entry, not documentation: about 50 words, **150–330 characters** (past ~500 it crowds the skill list). Action verb + key use case first, then "Use when …" with the words users actually type (synonyms, cases where the domain isn't named), then required inputs if any. Third person. Version history, modes, output paths and step lists go in the body.
+- **When not to use** — one "Not for X, use Y." line per overlapping neighbour from Step 2; it goes in the body section of that name.
 - **User-invocable** (true/false)
 - **Argument hint** (if user-invocable)
 - **Steps outline** — numbered list of what the skill does
@@ -67,7 +68,7 @@ Write the full SKILL.md file following this structure:
 ---
 name: <kebab-case-name>
 version: "0.0.1"
-description: <one-sentence description for skill list>
+description: <~50 words, 150–330 chars: what it does (key use case first), then "Use when …" with the words users type, then required inputs>
 user-invocable: <true|false>
 argument-hint: "<hint text>" # only if user-invocable
 ---
@@ -82,6 +83,9 @@ argument-hint: "<hint text>" # only if user-invocable
 
 ### Step N: Title
 <Instructions for each step>
+
+## When not to use (if Step 2 found overlapping skills)
+- Not for <X>, use <neighbour>.
 
 ## Rules
 <Bullet list of constraints>
