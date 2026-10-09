@@ -1,11 +1,11 @@
 ---
 name: extract
-version: "0.2.1"
-description: Smart-fetch URL content and resolve vault image/PDF embeds to extract structured value from any vault note or URL — standalone content extraction following the Content Extraction convention. Supports single note, URL, and batch folder modes.
+version: "0.2.2"
+description: 'Extracts structured value from a vault note or URL: smart-fetches thin notes, resolves image/PDF embeds, and adds a summary, takeaways, action items, vault connections and the full source text. Use when asked to extract, summarize or capture an article, tweet, YouTube video, link or folder of notes. Requires a note, URL or folder.'
 user-invocable: true
 argument-hint: "note filename, URL, folder path, or 'batch' for INBOX"
 ---
-<!-- ported-from: extract@0.5.3 sha256:ad0cb1cee53f -->
+<!-- ported-from: extract@0.5.3 sha256:70d823b63765 -->
 
 Extract structured value from any note or URL using the [[Content Extraction]] convention. Smart-fetches thin notes, generates an extraction block with summary, takeaways, action items, and vault connections.
 
