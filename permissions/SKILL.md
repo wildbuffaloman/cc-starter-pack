@@ -1,17 +1,19 @@
 ---
 name: permissions
-version: "0.1.1"
+version: "0.1.2"
 description: Show the current Claude Code permission setup by reading the project, local and user settings.json files and summarizing which tools are allowed or denied. Use when the user asks what is allowed, why a tool or command is blocked, about permission prompts or allow/deny lists, or how to change permissions.
 ---
 <!-- ported-from: permissions@0.1.0 sha256:888b1037a002 -->
 
 Show the user the current permission configuration:
 
-1. Read and display contents of `.claude/settings.json` if it exists
-2. Read and display contents of `.claude/settings.local.json` if it exists
-3. Read and display contents of `~/.claude/settings.json` if it exists (user-level)
+1. Read `.claude/settings.json` if it exists; display ONLY the `permissions` object (limited to `allow`, `deny`, `ask`, `defaultMode`, `additionalDirectories`) and `autoMode.environment`, applying the redaction rule below.
+2. Read `.claude/settings.local.json` if it exists; display ONLY the same permission-related keys, applying the same redaction rule.
+3. Read `~/.claude/settings.json` if it exists (user-level); display ONLY the same permission-related keys, applying the same redaction rule.
 4. Summarize which tools are allowed/blocked
 5. Explain how to modify permissions
+
+Never print `env`, `apiKeyHelper`, hook `command` strings, or any value whose key contains `KEY`, `TOKEN`, `SECRET`, or `PASSWORD` (case-insensitive). Apply this rule at every nesting depth, including within the permitted sections and summaries. If relevant, list such keys by name with their values replaced by `[redacted]`. Never output a whole settings file.
 
 If no settings files exist, explain how to create them and configure permissions.
 
@@ -33,7 +35,7 @@ Example settings.json structure:
 
 ### Required
 
-- Nothing beyond Claude Code's built-in Read tool. This skill reads up to three settings files in known paths (`.claude/settings.json`, `.claude/settings.local.json`, `~/.claude/settings.json`) and renders their contents. No external dependencies.
+- Nothing beyond Claude Code's built-in Read tool. This skill reads up to three settings files in known paths (`.claude/settings.json`, `.claude/settings.local.json`, `~/.claude/settings.json`) and renders only permission-related keys. No external dependencies.
 
 ### Optional
 
