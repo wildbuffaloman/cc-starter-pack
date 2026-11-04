@@ -1,11 +1,11 @@
 ---
 name: project-create
-version: "0.4.0"
+version: "0.4.1"
 description: Creates a Project or Program brief through research, an overlap check against existing briefs, scoping Q&A and the brief template, then files a project in its own folder after review. Use when asked to start, create, scope or set up a project or program, or turn an idea or Inbox note into a brief. Takes a note path, Inbox title or topic.
 user-invocable: true
 argument-hint: "note path, note title in INBOX, or topic description"
 ---
-<!-- ported-from: project-create@0.5.1 sha256:90060fbba720 -->
+<!-- ported-from: project-create@0.5.4 sha256:d0ac6642db0a -->
 
 Create a Project Brief or Program Brief through a structured interactive process — research the input, run a guided Q&A to scope the initiative, decide project vs. program, apply the correct template, link to relevant vault notes and external references, and deliver for review.
 
@@ -17,7 +17,7 @@ Create a Project Brief or Program Brief through a structured interactive process
 
 ## Philosophy
 
-Every idea deserves a fair shot at becoming a project — but only after it has been properly scoped. This skill applies the vault's project scaffold requirements: Outcome, Plan with 3-7 milestones, Actions with next 10, Log with proof of motion. If it cannot fit that structure, it belongs in incubation, not active projects.
+Every idea deserves a fair shot at becoming a project — but only after it has been properly scoped. This skill applies the vault's project scaffold requirements: Outcome, Plan with 3-7 milestones, Next Actions (max 7), Log with proof of motion. If it cannot fit that structure, it belongs in incubation, not active projects.
 
 The skill is conversational — it gathers context through research and Q&A before writing anything. The user drives scope decisions; the AI provides structure, research, and vault connections.
 
@@ -164,13 +164,14 @@ Apply the correct template based on the decision. For **Projects**, the Continua
 Frontmatter: description, AREA, SUB-AREA, category: project, status (active|delegated|incubating|blocked|someday-maybe), tags, owner: "[[Name]]", parent: "[[Program]]" (required — must point to a program), depends_on (array of wikilinks), feeds (array of wikilinks), learns_from (array of wikilinks)
 H2 Outcome — one sentence blockquote
 H2 Why This Matters — success stakes, failure stakes
-H2 Next Actions — first subsection is `### Continuation Prompt` (empty template for session handoffs; `/session-close` reads and rewrites it there — never a standalone `## Continuation Prompt` H2), then the concrete next steps from Q&A
+H2 Plan (Milestones) — table, 3-7 milestones with targets
+H2 Next Actions — first subsection `### Continuation Prompt` (empty template for session handoffs; `/session-close` reads and rewrites it there — never a standalone `## Continuation Prompt` H2), then ≤7 open next steps
 H2 Waiting For — items from other people
+H2 Decisions — Q&A decisions table
+H2 Working Notes — research findings, frameworks, context from Q&A
 H2 Dependencies — human-readable list of dependencies with wikilinks and descriptions
 H2 AI Ecosystem — Feeds Into (table), Learns From (table)
 H2 Key Resources — Evergreen Notes, Reference Materials, People/Collaborators
-H2 Working Notes — research findings, frameworks, context from Q&A
-H2 Plan with Milestones table — 3-7 milestones with targets
 H2 Log — creation entry
 ```
 
@@ -263,7 +264,7 @@ Tell the user:
 
 ### Step 6: Phase 2 — Review & Commit (Projects only)
 
-> **Programs skip this step** and proceed directly to Step 7 (Cross-Link Scan). The user moves a program brief manually to its area folder.
+> **Programs skip this step** and proceed directly to Step 7 (Cross-Link Scan). The user moves a program brief to its area folder, or, on the user's yes after Step 7, this skill moves it there (next to its area note) and sets `status:` to `active` or `incubating`.
 
 This is the commit phase. The draft brief is already on disk in `Inbox/`. Now walk the user through final review, iterate as needed, then physically commit the project by creating its folder, moving the brief into it, and setting the final status.
 
